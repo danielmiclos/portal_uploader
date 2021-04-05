@@ -8,15 +8,18 @@ const crypto = require('crypto');
 
 const Project = require('./models/project');
 const ProjectItem = require('./models/projectItem');
+const Episode = require('./models/episode');
 const mongoose = require('mongoose');
 
 routes.get('/', (req, res) => {
     return res.json({hello : "OK!"});
 });
 
+routes.get('/api', (req, res) => {
+    return res.json({hello : "Hello api"});
+});
 
-
-routes.post("/createproject", (req, res) => {
+routes.post(["/api/createproject", "/createproject"], (req, res) => {
 
     const {title, date, jobid, bidid} = req.body;
 
@@ -49,6 +52,47 @@ routes.post("/createproject", (req, res) => {
     return res.status(200).json(project);
 })
 
+routes.post(["/api/createepisode", "/createepisode"], async (req, res) => {
+    const {title, parentid} = req.body;
+
+    console.log(title, parentid);
+
+    if(parentid) {
+        await Project.findById(parentid, (err, project) => {
+            if(err) {
+                console.error(err)
+                return res.status(400).json({message: 'not found'});
+            } else {
+
+                console.log("project", project);
+
+                // cria o episódio
+                const episode = new Episode({
+                    name: title,
+                    parentId: parentid,
+                    createdAt:  Date.now(),
+                    modifiedAt: Date.now(),
+                });
+
+                episode.save()
+                    .then(result => {
+                    console.log(result);
+                    return res.status(200).json(result)
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        return res.status(400).json(error);
+                    })
+
+                // return res.status(200).json(project);
+            }
+        })
+    } else {
+        return res.status(400).send("parameter \'parentid\' missing. Check your request");
+    }
+
+});
+
 routes.get("/getproject/:id", async(req, res) => {
 
     //pegando o parametro id
@@ -72,7 +116,7 @@ routes.get("/getproject/:id", async(req, res) => {
 
 })
 
-routes.get("/getprojects", async (req, res) => {
+routes.get(["/getprojects", "/api/getprojects"], async (req, res) => {
     await Project.find({}, (err, projects) => {
         if(err) {
             console.error(err)
@@ -83,7 +127,7 @@ routes.get("/getprojects", async (req, res) => {
     });
 });
 
-routes.get("/getprojectitems/:id", async (req, res) => {
+routes.get(["/getprojectitems/:id", "/api/getprojectitems/:id"], async (req, res) => {
     //pegando o parametro id
     const {id} = req.params;
     console.log(id);
@@ -91,7 +135,7 @@ routes.get("/getprojectitems/:id", async (req, res) => {
             await ProjectItem.find({parentId: id}, (err, items) => {
                 if(err) {
                     console.error(err)
-                    return res.status(400).json({message: 'not found'});
+                    return res.status(404).json({message: 'not found'});
                 } else {
                     console.log(items);
                     return res.status(200).json(items);
@@ -102,9 +146,27 @@ routes.get("/getprojectitems/:id", async (req, res) => {
         }
 });
 
+routes.get(["/api/getepisodes/:id", "/getepisodes/:id"], async (req, res) => {
+    const {id} = req.params;
+    console.log(id);
+    if(id) {
+        await Episode.find({parentId: id}, (err, items) => {
+            if(err) {
+                console.log(err);
+                return res.status(400).json({message: "not found"});
+            } else {
+                console.log(items);
+                return res.status(200).json(items);
+            }
+        })
+    } else {
+        return res.status(400).send("parameter \'id\' is missing. Check your request");
+    }
+})
 
 
-routes.post("/post/video", multer(multerConfig).single('file'), (req, res) => {
+
+routes.post(["/post/video", "/api/post/video"], multer(multerConfig).single('file'), (req, res) => {
 
     console.log(req.file);
     console.log("BODY: ", req.body);
@@ -179,7 +241,7 @@ const edlConfig = multer({
     }
 });
 
-routes.post('/post/edl', multer(edlConfig).single('file'), (req, res) => {
+routes.post(['/post/edl', '/api/post/edl'], multer(edlConfig).single('file'), (req, res) => {
     // console.log('body._id: ', req.body._id);
     console.log('file: ', req.file);
     console.log('body: ', req.body);
@@ -258,7 +320,7 @@ const cutConfig = multer({
 
 });
 
-routes.post('/post/cut', multer(cutConfig).single('file'), (req, res) => {
+routes.post(['/post/cut', '/api/post/cut'], multer(cutConfig).single('file'), (req, res) => {
     // console.log('body._id: ', req.body._id);
     console.log('file: ', req.file);
     console.log('body: ', req.body);
